@@ -1,0 +1,12 @@
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+find_dependency(keel)
+
+include("${CMAKE_CURRENT_LIST_DIR}/keel_waveletTargets.cmake")
+
+if(TARGET keel::keel_wavelet AND NOT TARGET keel::wavelet)
+    add_library(keel::wavelet ALIAS keel::keel_wavelet)
+endif()
+
+check_required_components(keel_wavelet)
