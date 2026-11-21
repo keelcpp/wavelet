@@ -1,6 +1,7 @@
 #pragma once
 
 #include "keel/array.h"
+#include "keel/complex.h"
 #include "keel/core.h"
 #include "keel/math.h"
 #include "keel/memory.h"
@@ -131,5 +132,130 @@ enum class EntropyKind : u8 {
 };
 
 [[nodiscard]] f64 entropy(ArrayRef<f64> x, EntropyKind kind, f64 param = 0.0) noexcept;
+
+// ============================================================================
+// Multilevel 1D/2D Utilities, Haar & Dyadic Primitives
+// ============================================================================
+
+/// Energy percentages for a 1D `wavedec` decomposition `(c, l)`.
+/// Writes approximation percentage to `ea_out` and finest-first detail percentages
+/// `Ed[0..n_levels-1]` (level 1 .. level N) into `ed_out`.
+[[nodiscard]] bool wenergy(ArrayRef<f64> c, ArrayRef<usize> l, f64& ea_out, MutArrayRef<f64> ed_out) noexcept;
+
+/// Direct upsampling and synthesis filtering (`is_detail == false` for approximation, `true` for detail).
+[[nodiscard]] Array<f64> upcoef(bool is_detail, ArrayRef<f64> x, const FilterBank& fb, i32 level,
+                                i64 target_len = -1, Allocator* alloc = nullptr);
+
+/// Single-branch 1D reconstruction from a `wavedec` `(c, l)` decomposition.
+/// `level == -1` selects the coarsest level `N`.
+[[nodiscard]] Array<f64> wrcoef(bool is_detail, ArrayRef<f64> c, ArrayRef<usize> l, ArrayRef<f64> lo_r,
+                                ArrayRef<f64> hi_r, i32 level = -1, Allocator* alloc = nullptr);
+
+/// Maximum useful wavelet decomposition level for a signal of length `signal_len` and filter length `filter_len`.
+[[nodiscard]] usize wmaxlev(usize signal_len, usize filter_len) noexcept;
+
+enum class Detail2D : u8 {
+    Horizontal = 0,
+    Vertical,
+    Diagonal,
+};
+
+struct Wavedec2Result {
+    Array<f64> c;        ///< Packed [cA_N | cH_N cV_N cD_N | ... | cH_1 cV_1 cD_1]
+    Array<usize> s_rows; ///< Bookkeeping row sizes (N + 2 entries)
+    Array<usize> s_cols; ///< Bookkeeping col sizes (N + 2 entries)
+};
+
+[[nodiscard]] Wavedec2Result wavedec2(ArrayRef<f64> x_colmajor, usize rows, usize cols, i32 level,
+                                      const FilterBank& fb, Allocator* alloc = nullptr);
+
+[[nodiscard]] Idwt2Result appcoef2(ArrayRef<f64> c, ArrayRef<usize> s_rows, ArrayRef<usize> s_cols,
+                                   const FilterBank& fb, i32 level = -1, Allocator* alloc = nullptr);
+
+[[nodiscard]] Idwt2Result waverec2(ArrayRef<f64> c, ArrayRef<usize> s_rows, ArrayRef<usize> s_cols,
+                                   const FilterBank& fb, Allocator* alloc = nullptr);
+
+[[nodiscard]] Idwt2Result detcoef2(Detail2D kind, ArrayRef<f64> c, ArrayRef<usize> s_rows, ArrayRef<usize> s_cols,
+                                   i32 level, Allocator* alloc = nullptr);
+
+/// Largest k such that 2^k divides `n`.
+[[nodiscard]] i32 haar_max_level(usize n) noexcept;
+
+/// Single-level 1D Haar decomposition (orthogonal or lifting integer mode).
+/// Requires `x.size()` even, `a_out.size() >= x.size()/2`, `d_out.size() >= x.size()/2`.
+void haar_step(ArrayRef<f64> x, MutArrayRef<f64> a_out, MutArrayRef<f64> d_out,
+               bool integer_lifting = false) noexcept;
+
+void haar_step_c64(ArrayRef<c64> x, MutArrayRef<c64> a_out, MutArrayRef<c64> d_out) noexcept;
+
+/// Single-level 1D inverse Haar reconstruction (orthogonal or lifting integer mode).
+/// Requires `a.size() == d.size()` and `x_out.size() >= 2 * a.size()`.
+void ihaar_step(ArrayRef<f64> a, ArrayRef<f64> d, MutArrayRef<f64> x_out,
+                bool integer_lifting = false) noexcept;
+
+void ihaar_step_c64(ArrayRef<c64> a, ArrayRef<f64> d, MutArrayRef<c64> x_out) noexcept;
+
+/// 1D dyadic downsampling (`keep_odd == false` keeps 0-based indices 1,3,...; `true` keeps 0,2,...).
+void dyaddown_1d(ArrayRef<f64> x, MutArrayRef<f64> out, bool keep_odd = false) noexcept;
+
+/// 1D dyadic upsampling (`pad_ends == false` -> length `2*N-1`; `true` -> length `2*N+1` with leading/trailing 0).
+void dyadup_1d(ArrayRef<f64> x, MutArrayRef<f64> out, bool pad_ends = false) noexcept;
+
+// ============================================================================
+// Continuous Wavelet Shapes, Center Frequency & Continuous Wavelet Transform
+// ============================================================================
+
+void mexihat(f64 lb, f64 ub, MutArrayRef<f64> psi, MutArrayRef<f64> x) noexcept;
+void morlet(f64 lb, f64 ub, MutArrayRef<f64> psi, MutArrayRef<f64> x) noexcept;
+[[nodiscard]] f64 meyeraux(f64 v) noexcept;
+void meyeraux(ArrayRef<f64> in, MutArrayRef<f64> out) noexcept;
+void shanwavf(f64 lb, f64 ub, f64 fb, f64 fc, MutArrayRef<c64> psi, MutArrayRef<f64> x) noexcept;
+void cmorwavf(f64 lb, f64 ub, f64 fb, f64 fc, MutArrayRef<c64> psi, MutArrayRef<f64> x) noexcept;
+void fbspwavf(f64 lb, f64 ub, i32 m, f64 fb, f64 fc, MutArrayRef<c64> psi, MutArrayRef<f64> x) noexcept;
+void gauswavf(f64 lb, f64 ub, i32 p, MutArrayRef<f64> psi, MutArrayRef<f64> x) noexcept;
+void cgauwavf(f64 lb, f64 ub, i32 p, MutArrayRef<c64> psi, MutArrayRef<f64> x, Allocator* alloc = nullptr);
+
+struct WavefunPsiResult {
+    Array<f64> psi_real;
+    Array<c64> psi_cplx;
+    Array<f64> xval;
+    bool is_complex = false;
+    bool ok = false;
+};
+
+[[nodiscard]] WavefunPsiResult wavefun_psi(StringRef name, i32 iter = 8, Allocator* alloc = nullptr);
+
+struct CentfrqResult {
+    f64 freq = 0.0;
+    Array<f64> xval;
+    Array<f64> recfreq_real;
+    Array<c64> recfreq_cplx;
+    bool is_complex = false;
+    bool ok = false;
+};
+
+[[nodiscard]] CentfrqResult centfrq(StringRef name, i32 iter = 8, bool with_recfreq = false,
+                                    Allocator* alloc = nullptr);
+
+enum class CwtWavelet : u8 {
+    Morse = 0,
+    Amor,
+    Bump,
+};
+
+struct CwtResult {
+    Array<c64> cfs_colmajor; ///< Complex CWT coefficients (num_scales x num_samples, column-major)
+    Array<f64> freqs;        ///< Scale frequencies in Hz (length num_scales)
+    Array<f64> coi;          ///< Cone of influence frequencies in Hz (length num_samples)
+    usize num_scales = 0;
+    usize num_samples = 0;
+};
+
+/// 1D analytic Continuous Wavelet Transform (Morse, Analytic Morlet, or Bump).
+/// Pass `fmin > 0 && fmax > fmin` to restrict frequency limits; leave `0.0` for automatic range.
+[[nodiscard]] CwtResult cwt(ArrayRef<f64> x, CwtWavelet wavelet, f64 sample_rate,
+                            i32 voices_per_octave = 10, f64 time_bandwidth = 60.0, f64 gamma = 3.0,
+                            bool extend_signal = true, f64 fmin = 0.0, f64 fmax = 0.0,
+                            Allocator* alloc = nullptr);
 
 } // namespace keel::wavelet

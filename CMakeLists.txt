@@ -23,15 +23,43 @@ if(NOT TARGET keel::keel)
     FetchContent_MakeAvailable(keel)
 endif()
 
+if(NOT TARGET keel::fft)
+    find_package(keel_fft QUIET CONFIG)
+    if(TARGET keel::keel_fft AND NOT TARGET keel::fft)
+        add_library(keel::fft ALIAS keel::keel_fft)
+    endif()
+endif()
+if(NOT TARGET keel::fft)
+    include(FetchContent)
+    set(KEEL_FFT_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../fft/CMakeLists.txt" AND NOT DEFINED FETCHCONTENT_SOURCE_DIR_KEEL_FFT)
+        set(FETCHCONTENT_SOURCE_DIR_KEEL_FFT "${CMAKE_CURRENT_SOURCE_DIR}/../fft" CACHE PATH "Local keel_fft checkout")
+    endif()
+    if(KEEL_WAVELET_NO_EXCEPTIONS_RTTI)
+        set(KEEL_FFT_NO_EXCEPTIONS_RTTI ON CACHE BOOL "" FORCE)
+    endif()
+    FetchContent_Declare(
+        keel_fft
+        GIT_REPOSITORY https://github.com/keelcpp/fft.git
+        GIT_TAG        abd91d6693d5f2a56311ecc4fbb38e2555ee0486
+    )
+    FetchContent_MakeAvailable(keel_fft)
+endif()
+
 add_library(keel_wavelet STATIC
     src/filters.cpp
     src/dwt.cpp
+    src/multilevel.cpp
     src/swt.cpp
     src/denoise.cpp
+    src/shape.cpp
 )
 add_library(keel::wavelet ALIAS keel_wavelet)
 
-target_link_libraries(keel_wavelet PUBLIC keel::keel)
+target_link_libraries(keel_wavelet
+    PUBLIC  keel::keel
+    PRIVATE keel::fft
+)
 
 target_compile_features(keel_wavelet PUBLIC cxx_std_20)
 set_target_properties(keel_wavelet PROPERTIES

@@ -103,12 +103,135 @@ void test_swt_denoise_entropy() {
     check_near(keel::wavelet::entropy(v, keel::wavelet::EntropyKind::Threshold, 1.0), 2.0, 1e-15, "threshold entropy");
 }
 
+void test_multilevel_haar_dyad() {
+    keel::wavelet::FilterBank fb;
+    check(keel::wavelet::lookup_filters("db3", fb), "lookup db3");
+
+    keel::f64 sig[24];
+    for (keel::usize i = 0; i < 24; ++i) {
+        sig[i] = std::sin(0.25 * static_cast<keel::f64>(i)) + 0.3 * static_cast<keel::f64>(i % 5);
+    }
+
+    auto dec = keel::wavelet::wavedec(sig, 3, fb);
+    keel::f64 ea = 0.0;
+    keel::f64 ed[3]{};
+    check(keel::wavelet::wenergy(dec.c, dec.l, ea, ed), "wenergy ok");
+    check_near(ea + ed[0] + ed[1] + ed[2], 100.0, 1e-10, "wenergy sums to 100%");
+
+    // wrcoef: A3 + D3 + D2 + D1 == original signal
+    auto a3 = keel::wavelet::wrcoef(false, dec.c, dec.l, fb.lo_r, fb.hi_r, 3);
+    auto d3 = keel::wavelet::wrcoef(true, dec.c, dec.l, fb.lo_r, fb.hi_r, 3);
+    auto d2 = keel::wavelet::wrcoef(true, dec.c, dec.l, fb.lo_r, fb.hi_r, 2);
+    auto d1 = keel::wavelet::wrcoef(true, dec.c, dec.l, fb.lo_r, fb.hi_r, 1);
+    check(a3.size() == 24 && d1.size() == 24, "wrcoef length");
+    for (keel::usize i = 0; i < 24; ++i) {
+        check_near(a3[i] + d3[i] + d2[i] + d1[i], sig[i], 1e-10, "wrcoef perfect sum");
+    }
+
+    // upcoef
+    const keel::f64 impulse[1] = {1.0};
+    auto up = keel::wavelet::upcoef(false, impulse, fb, 2);
+    check(up.size() > 0, "upcoef non-empty");
+    check(keel::wavelet::wmaxlev(64, 6) == 3, "wmaxlev(64, db3)");
+
+    // 2D multilevel roundtrip
+    keel::f64 img[10 * 12];
+    for (keel::usize i = 0; i < 120; ++i) {
+        img[i] = std::sin(0.1 * static_cast<keel::f64>(i)) + static_cast<keel::f64>(i % 9);
+    }
+    auto dec2 = keel::wavelet::wavedec2(img, 10, 12, 2, fb);
+    auto rec2 = keel::wavelet::waverec2(dec2.c, dec2.s_rows, dec2.s_cols, fb);
+    check(rec2.rows == 10 && rec2.cols == 12, "waverec2 shape");
+    for (keel::usize i = 0; i < 120; ++i) {
+        check_near(rec2.out[i], img[i], 1e-9, "wavedec2/waverec2 roundtrip");
+    }
+    auto dh1 = keel::wavelet::detcoef2(keel::wavelet::Detail2D::Horizontal, dec2.c, dec2.s_rows, dec2.s_cols, 1);
+    check(dh1.rows == dec2.s_rows[2] && dh1.cols == dec2.s_cols[2], "detcoef2 shape");
+
+    // Haar orthogonal & integer lifting roundtrip
+    const keel::f64 hx[8] = {3.0, 7.0, -2.0, 5.0, 11.0, 0.0, 4.0, -8.0};
+    keel::f64 ha[4]{}, hd[4]{}, hrec[8]{};
+    check(keel::wavelet::haar_max_level(8) == 3, "haar_max_level(8)");
+    keel::wavelet::haar_step(hx, ha, hd, false);
+    keel::wavelet::ihaar_step(ha, hd, hrec, false);
+    for (keel::usize i = 0; i < 8; ++i) check_near(hrec[i], hx[i], 1e-14, "haar orth roundtrip");
+
+    keel::wavelet::haar_step(hx, ha, hd, true);
+    keel::wavelet::ihaar_step(ha, hd, hrec, true);
+    for (keel::usize i = 0; i < 8; ++i) check_near(hrec[i], hx[i], 1e-15, "haar integer lifting roundtrip");
+
+    // Dyadic down/up
+    keel::f64 dd[4]{}, du[7]{};
+    keel::wavelet::dyaddown_1d(hx, dd, false);
+    check_near(dd[0], 7.0, 1e-15, "dyaddown even 0");
+    keel::wavelet::dyadup_1d(dd, du, false);
+    check_near(du[0], 7.0, 1e-15, "dyadup 0");
+    check_near(du[1], 0.0, 1e-15, "dyadup 1");
+    check_near(du[2], 5.0, 1e-15, "dyadup 2");
+}
+
+void test_shapes_centfrq_cwt() {
+    keel::f64 x[11]{}, psi[11]{};
+    keel::wavelet::mexihat(-5.0, 5.0, psi, x);
+    check_near(x[5], 0.0, 1e-15, "mexihat center x");
+    check(psi[5] > 0.8, "mexihat peak > 0.8");
+
+    keel::wavelet::morlet(-4.0, 4.0, psi, x);
+    check_near(psi[5], 1.0, 1e-15, "morlet(0) == 1");
+    check_near(keel::wavelet::meyeraux(0.5), 0.5, 1e-15, "meyeraux(0.5) == 0.5");
+
+    keel::wavelet::gauswavf(-5.0, 5.0, 2, psi, x);
+    check(std::isfinite(psi[5]), "gauswavf finite");
+
+    keel::c64 cpsi[11]{};
+    keel::wavelet::cgauwavf(-5.0, 5.0, 1, cpsi, x);
+    check(keel::abs(cpsi[5]) > 0.0, "cgauwavf non-zero");
+
+    auto cf_morl = keel::wavelet::centfrq("morl", 8, true);
+    check(cf_morl.ok, "centfrq morl ok");
+    check_near(cf_morl.freq, 0.8125, 0.05, "centfrq morl ~0.8125");
+    check(cf_morl.recfreq_real.size() == cf_morl.xval.size(), "centfrq recfreq size");
+
+    auto cf_db4 = keel::wavelet::centfrq("db4", 8, false);
+    check(cf_db4.ok && cf_db4.freq > 0.5 && cf_db4.freq < 1.0, "centfrq db4");
+
+    // CWT peak frequency check on a 50 Hz tone sampled at 500 Hz
+    constexpr keel::f64 kFs = 500.0;
+    constexpr keel::usize kN = 256;
+    keel::Array<keel::f64> tone(kN);
+    for (keel::usize i = 0; i < kN; ++i) {
+        tone[i] = std::sin(keel::kTau * 50.0 * static_cast<keel::f64>(i) / kFs);
+    }
+    const keel::wavelet::CwtWavelet waves[3] = {
+        keel::wavelet::CwtWavelet::Morse,
+        keel::wavelet::CwtWavelet::Amor,
+        keel::wavelet::CwtWavelet::Bump,
+    };
+    for (keel::usize w = 0; w < 3; ++w) {
+        auto res = keel::wavelet::cwt(tone, waves[w], kFs, 10);
+        check(res.num_scales > 5 && res.num_samples == kN, "cwt dims");
+        // Check peak scale at middle sample kN/2
+        keel::usize best_s = 0;
+        keel::f64 best_mag = -1.0;
+        for (keel::usize s = 0; s < res.num_scales; ++s) {
+            const keel::f64 m = keel::abs(res.cfs_colmajor[s + (kN / 2) * res.num_scales]);
+            if (m > best_mag) {
+                best_mag = m;
+                best_s = s;
+            }
+        }
+        check_near(res.freqs[best_s], 50.0, 5.0, "cwt peak frequency ~50 Hz");
+    }
+}
+
 } // namespace
 
 int main() {
     test_filters_and_dwt_roundtrip();
     test_dwt2_and_modwt_roundtrip();
     test_swt_denoise_entropy();
+    test_multilevel_haar_dyad();
+    test_shapes_centfrq_cwt();
     if (g_failures == 0) {
         std::printf("ALL keel::wavelet TESTS PASSED\n");
         return 0;
