@@ -351,7 +351,7 @@ Idwt2Result detcoef2(Detail2D kind, ArrayRef<f64> c, ArrayRef<usize> s_rows, Arr
     const usize dr = s_rows[idx];
     const usize dc = s_cols[idx];
     const usize dn = dr * dc;
-    off += static_cast<usize>(kind) * dn;
+    off += as<usize>(kind) * dn;
     if (off + dn > c.size()) {
         return res;
     }
