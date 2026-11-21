@@ -19,9 +19,9 @@ void fill_linspace(f64 lb, f64 ub, MutArrayRef<f64> x) noexcept {
         x[0] = ub;
         return;
     }
-    const f64 step = (ub - lb) / static_cast<f64>(n - 1);
+    const f64 step = (ub - lb) / as<f64>(n - 1);
     for (usize i = 0; i < n; ++i) {
-        x[i] = lb + step * static_cast<f64>(i);
+        x[i] = lb + step * as<f64>(i);
     }
     x[n - 1] = ub;
 }
@@ -45,7 +45,7 @@ f64 hermite_real(i32 p, f64 t) noexcept {
     f64 hm = 1.0;
     f64 hc = 2.0 * t;
     for (i32 n = 1; n < p; ++n) {
-        const f64 hn = 2.0 * t * hc - 2.0 * static_cast<f64>(n) * hm;
+        const f64 hn = 2.0 * t * hc - 2.0 * as<f64>(n) * hm;
         hm = hc;
         hc = hn;
     }
@@ -58,7 +58,7 @@ c64 hermite_complex(i32 p, c64 z) noexcept {
     c64 hm(1.0, 0.0);
     c64 hc = 2.0 * z;
     for (i32 n = 1; n < p; ++n) {
-        const c64 hn = 2.0 * z * hc - 2.0 * static_cast<f64>(n) * hm;
+        const c64 hn = 2.0 * z * hc - 2.0 * as<f64>(n) * hm;
         hm = hc;
         hc = hn;
     }
@@ -68,7 +68,7 @@ c64 hermite_complex(i32 p, c64 z) noexcept {
 f64 dblfact_norm_sq(i32 p) noexcept {
     f64 r = keel::sqrt(kPi * 0.5);
     for (i32 k = 1; k <= p; ++k) {
-        r *= static_cast<f64>(2 * k - 1);
+        r *= as<f64>(2 * k - 1);
     }
     return r;
 }
@@ -92,7 +92,7 @@ f64 lgamma_pos(f64 z) noexcept {
     const f64 zm1 = z - 1.0;
     f64 x = kCoeffs[0];
     for (usize i = 1; i < 9; ++i) {
-        x += kCoeffs[i] / (zm1 + static_cast<f64>(i));
+        x += kCoeffs[i] / (zm1 + as<f64>(i));
     }
     const f64 t = zm1 + 7.5;
     return 0.5 * keel::log(kTau) + (zm1 + 0.5) * keel::log(t) - t + keel::log(x);
@@ -141,7 +141,7 @@ bool parse_i32_two_f64(StringRef s, i32& m, f64& v1, f64& v2) noexcept {
     if (!rm.is_ok() || rm.value() < 1 || rm.value() > 1000) {
         return false;
     }
-    m = static_cast<i32>(rm.value());
+    m = as<i32>(rm.value());
     return parse_two_f64(s.substr(d1 + 1), v1, v2);
 }
 
@@ -222,11 +222,11 @@ void fbspwavf(f64 lb, f64 ub, i32 m, f64 fb, f64 fc, MutArrayRef<c64> psi, MutAr
     }
     fill_linspace(lb, ub, MutArrayRef<f64>(x.data(), n));
     const f64 s = keel::sqrt(fb);
-    const f64 inv_m = 1.0 / static_cast<f64>(m);
+    const f64 inv_m = 1.0 / as<f64>(m);
     for (usize i = 0; i < n; ++i) {
         const f64 t = x[i];
         const f64 sc = sinc_pi(fb * t * inv_m);
-        const f64 pow_sc = keel::pow(sc, static_cast<f64>(m));
+        const f64 pow_sc = keel::pow(sc, as<f64>(m));
         psi[i] = s * pow_sc * cexp_2pi(fc * t);
     }
 }
@@ -269,7 +269,7 @@ void cgauwavf(f64 lb, f64 ub, i32 p, MutArrayRef<c64> psi, MutArrayRef<f64> x, A
 
     f64 norm_sq = 0.0;
     if (n >= 2) {
-        const f64 h = (ub - lb) / static_cast<f64>(n - 1);
+        const f64 h = (ub - lb) / as<f64>(n - 1);
         for (usize i = 0; i < n; ++i) {
             const f64 w = (i == 0 || i + 1 == n) ? 0.5 : 1.0;
             norm_sq += w * mag2[i];
@@ -296,7 +296,7 @@ WavefunPsiResult wavefun_psi(StringRef name, i32 iter, Allocator* alloc) {
         wname[i] = keel::to_ascii_lower(wname[i]);
     }
     const StringRef wn = wname;
-    const usize grid_n = static_cast<usize>(1ULL << static_cast<u32>(iter));
+    const usize grid_n = as<usize>(1ULL << as<u32>(iter));
 
     if (wn == "morl") {
         res.psi_real.resize(grid_n);
@@ -319,7 +319,7 @@ WavefunPsiResult wavefun_psi(StringRef name, i32 iter, Allocator* alloc) {
             if (!rp.is_ok() || rp.value() < 1 || rp.value() > 8) {
                 return res;
             }
-            p = static_cast<i32>(rp.value());
+            p = as<i32>(rp.value());
         }
         res.psi_real.resize(grid_n);
         res.xval.resize(grid_n);
@@ -334,7 +334,7 @@ WavefunPsiResult wavefun_psi(StringRef name, i32 iter, Allocator* alloc) {
             if (!rp.is_ok() || rp.value() < 1 || rp.value() > 8) {
                 return res;
             }
-            p = static_cast<i32>(rp.value());
+            p = as<i32>(rp.value());
         }
         res.psi_cplx.resize(grid_n);
         res.xval.resize(grid_n);
@@ -423,7 +423,7 @@ WavefunPsiResult wavefun_psi(StringRef name, i32 iter, Allocator* alloc) {
         y = conv_full_vec(ArrayRef<f64>(up.data(), up.size()), ArrayRef<f64>(lo.data(), lo.size()),
                           scratch.allocator());
     }
-    const f64 scale = keel::pow(2.0, 0.5 * static_cast<f64>(iter));
+    const f64 scale = keel::pow(2.0, 0.5 * as<f64>(iter));
     for (usize i = 0; i < y.size(); ++i) {
         y[i] *= scale;
     }
@@ -433,13 +433,13 @@ WavefunPsiResult wavefun_psi(StringRef name, i32 iter, Allocator* alloc) {
     f64 t_end = 0.0;
     if (l_len == 2) {
         len_psi = grid_n + 2;
-        t_end = 1.0 + 1.0 / static_cast<f64>(grid_n);
+        t_end = 1.0 + 1.0 / as<f64>(grid_n);
     } else if (is_bior) {
         len_psi = (l_len - 1) * grid_n;
-        t_end = static_cast<f64>(l_len - 1) - 1.0 / static_cast<f64>(grid_n);
+        t_end = as<f64>(l_len - 1) - 1.0 / as<f64>(grid_n);
     } else {
         len_psi = (l_len - 1) * grid_n + 1;
-        t_end = static_cast<f64>(l_len - 1);
+        t_end = as<f64>(l_len - 1);
     }
 
     res.psi_real.resize(len_psi);
@@ -493,9 +493,9 @@ CentfrqResult centfrq(StringRef name, i32 iter, bool with_recfreq, Allocator* al
     }
 
     const usize ind = best_idx0 + 1;
-    const usize ind_fold = (static_cast<f64>(ind) > 0.5 * static_cast<f64>(n)) ? (n + 2 - ind) : ind;
+    const usize ind_fold = (as<f64>(ind) > 0.5 * as<f64>(n)) ? (n + 2 - ind) : ind;
     const f64 t_span = wf.xval[n - 1] - wf.xval[0];
-    res.freq = static_cast<f64>(ind_fold - 1) / t_span;
+    res.freq = as<f64>(ind_fold - 1) / t_span;
     res.is_complex = wf.is_complex;
 
     res.xval.resize(n);
@@ -505,11 +505,11 @@ CentfrqResult centfrq(StringRef name, i32 iter, bool with_recfreq, Allocator* al
 
     if (with_recfreq) {
         const c64 y_peak = spec[best_idx0];
-        const f64 inv_n = 1.0 / static_cast<f64>(n);
+        const f64 inv_n = 1.0 / as<f64>(n);
         if (wf.is_complex) {
             res.recfreq_cplx.resize(n);
             for (usize k = 0; k < n; ++k) {
-                const f64 ang = kTau * static_cast<f64>(best_idx0 * k) * inv_n;
+                const f64 ang = kTau * as<f64>(best_idx0 * k) * inv_n;
                 const c64 e(keel::cos(ang), keel::sin(ang));
                 res.recfreq_cplx[k] = (y_peak * e) * inv_n;
             }
@@ -518,7 +518,7 @@ CentfrqResult centfrq(StringRef name, i32 iter, bool with_recfreq, Allocator* al
             const f64 scale =
                 (best_idx0 == 0 || ((n & 1u) == 0u && best_idx0 == n / 2)) ? inv_n : (2.0 * inv_n);
             for (usize k = 0; k < n; ++k) {
-                const f64 ang = kTau * static_cast<f64>(best_idx0 * k) * inv_n;
+                const f64 ang = kTau * as<f64>(best_idx0 * k) * inv_n;
                 const c64 e(keel::cos(ang), keel::sin(ang));
                 res.recfreq_real[k] = (y_peak * e).real() * scale;
             }
@@ -544,7 +544,7 @@ CwtResult cwt(ArrayRef<f64> x, CwtWavelet wavelet, f64 sample_rate, i32 voices_p
         }
     }
 
-    const f64 nv = static_cast<f64>(voices_per_octave);
+    const f64 nv = as<f64>(voices_per_octave);
     const f64 beta = time_bandwidth / gamma;
 
     f64 wpsi = 0.0;
@@ -595,7 +595,7 @@ CwtResult cwt(ArrayRef<f64> x, CwtWavelet wavelet, f64 sample_rate, i32 voices_p
     }
 
     f64 s0 = wc / kPi;
-    f64 smax = static_cast<f64>(n) / (2.0 * sigt);
+    f64 smax = as<f64>(n) / (2.0 * sigt);
     const f64 s_min_max = s0 * keel::pow(2.0, 1.0 / nv);
     if (smax < s_min_max) {
         smax = s_min_max;
@@ -613,13 +613,13 @@ CwtResult cwt(ArrayRef<f64> x, CwtWavelet wavelet, f64 sample_rate, i32 voices_p
 
     f64 n_oct = keel::log2(smax / s0);
     if (n_oct < 0.0) n_oct = 0.0;
-    const usize n_scales = 1 + static_cast<usize>(keel::floor(nv * n_oct + 1e-12));
+    const usize n_scales = 1 + as<usize>(keel::floor(nv * n_oct + 1e-12));
 
     ArenaTemp scratch = keel::get_scratch(alloc);
     Array<f64> scales(n_scales, scratch.allocator());
     res.freqs.resize(n_scales);
     for (usize j = 0; j < n_scales; ++j) {
-        scales[j] = s0 * keel::pow(2.0, static_cast<f64>(j) / nv);
+        scales[j] = s0 * keel::pow(2.0, as<f64>(j) / nv);
         res.freqs[j] = (wpsi * sample_rate) / (kTau * scales[j]);
     }
 
@@ -649,9 +649,9 @@ CwtResult cwt(ArrayRef<f64> x, CwtWavelet wavelet, f64 sample_rate, i32 voices_p
     plan.exec_rfft(x_pad, x_half);
 
     Array<f64> omega(k_max + 1, scratch.allocator());
-    const f64 d_omega = kTau / static_cast<f64>(n_pad);
+    const f64 d_omega = kTau / as<f64>(n_pad);
     for (usize k = 0; k <= k_max; ++k) {
-        omega[k] = static_cast<f64>(k) * d_omega;
+        omega[k] = as<f64>(k) * d_omega;
     }
 
     res.cfs_colmajor.resize(n_scales * n);
@@ -704,7 +704,7 @@ CwtResult cwt(ArrayRef<f64> x, CwtWavelet wavelet, f64 sample_rate, i32 voices_p
         const usize d_left = i + 1;
         const usize d_right = n - i;
         const usize dist = (d_left < d_right) ? d_left : d_right;
-        const f64 val = coi_num / static_cast<f64>(dist);
+        const f64 val = coi_num / as<f64>(dist);
         res.coi[i] = (val < f_top) ? val : f_top;
     }
 

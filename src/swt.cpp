@@ -45,12 +45,12 @@ SwtResult swt_ad(ArrayRef<f64> x, i32 level, ArrayRef<f64> lo_d, ArrayRef<f64> h
     if (level < 1 || lo_d.size() < 2 || (lo_d.size() & 1u) != 0u || lo_d.size() != hi_d.size()) return res;
 
     const usize n = x.size();
-    const usize h_rows = static_cast<usize>(level);
+    const usize h_rows = as<usize>(level);
     res.levels = h_rows;
     res.length = n;
     if (n == 0) return res;
 
-    const usize needed = static_cast<usize>(1) << h_rows;
+    const usize needed = as<usize>(1) << h_rows;
     if (n % needed != 0) return res;
 
     Array<f64> xv(alloc);
@@ -122,7 +122,7 @@ Array<f64> modwt(ArrayRef<f64> x, i32 level, const FilterBank& fb, Allocator* al
     if (level < 1 || x.empty() || fb.lo_d.empty() || fb.hi_d.empty()) return out;
 
     const usize n = x.size();
-    const usize lv = static_cast<usize>(level);
+    const usize lv = as<usize>(level);
     const usize h_rows = lv + 1;
     const f64 inv_sqrt2 = 1.0 / sqrt(2.0);
 
@@ -142,7 +142,7 @@ Array<f64> modwt(ArrayRef<f64> x, i32 level, const FilterBank& fb, Allocator* al
 
     out.resize(h_rows * n);
     for (usize k = 0; k < lv; ++k) {
-        const usize step = static_cast<usize>(1) << k;
+        const usize step = as<usize>(1) << k;
         Array<f64> a_next = circ_corr_back(ArrayRef<f64>(a.data(), n), ArrayRef<f64>(h_lo.data(), lf), step, alloc);
         Array<f64> d_next = circ_corr_back(ArrayRef<f64>(a.data(), n), ArrayRef<f64>(h_hi.data(), lf), step, alloc);
         for (usize c = 0; c < n; ++c) out[c * h_rows + k] = d_next[c];
@@ -175,7 +175,7 @@ Array<f64> imodwt(ArrayRef<f64> w_colmajor, usize levels, usize n, const FilterB
     d.resize(n);
     for (usize kk = levels; kk > 0; --kk) {
         const usize k = kk - 1;
-        const usize step = static_cast<usize>(1) << k;
+        const usize step = as<usize>(1) << k;
         for (usize c = 0; c < n; ++c) d[c] = w_colmajor[c * h_rows + k];
         Array<f64> lo = circ_corr_fwd(ArrayRef<f64>(a.data(), n), ArrayRef<f64>(h_lo.data(), lf), step, alloc);
         Array<f64> hi = circ_corr_fwd(ArrayRef<f64>(d.data(), n), ArrayRef<f64>(h_hi.data(), lf), step, alloc);

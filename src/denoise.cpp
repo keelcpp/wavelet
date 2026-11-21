@@ -72,8 +72,8 @@ Array<f64> denoise_visushrink(ArrayRef<f64> x, i32 level, const FilterBank& fb, 
 
     i32 use_level = level;
     if (use_level <= 0) {
-        const i32 max_log = static_cast<i32>(floor(log2(static_cast<f64>(n))));
-        use_level = min(max_log, static_cast<i32>(5));
+        const i32 max_log = as<i32>(floor(log2(as<f64>(n))));
+        use_level = min(max_log, as<i32>(5));
         if (use_level < 1) use_level = 1;
     }
 
@@ -81,11 +81,11 @@ Array<f64> denoise_visushrink(ArrayRef<f64> x, i32 level, const FilterBank& fb, 
     Array<f64> cd1 = detcoef(ArrayRef<f64>(dec.c.data(), dec.c.size()), ArrayRef<usize>(dec.l.data(), dec.l.size()), 1,
                              alloc);
     const f64 sigma = noise_sigma_mad(ArrayRef<f64>(cd1.data(), cd1.size()), alloc);
-    const f64 thr = sigma * sqrt(2.0 * log(static_cast<f64>(n)));
+    const f64 thr = sigma * sqrt(2.0 * log(as<f64>(n)));
 
     usize off = dec.l[0];
     for (i32 k = 0; k < use_level; ++k) {
-        const usize d_len = dec.l[1 + static_cast<usize>(k)];
+        const usize d_len = dec.l[1 + as<usize>(k)];
         for (usize i = 0; i < d_len && off + i < dec.c.size(); ++i) {
             dec.c[off + i] = soft_scalar(dec.c[off + i], thr);
         }
@@ -117,7 +117,7 @@ f64 entropy(ArrayRef<f64> x, EntropyKind kind, f64 param) noexcept {
         }
         break;
     case EntropyKind::Sure: {
-        e = static_cast<f64>(n);
+        e = as<f64>(n);
         const f64 t2 = param * param;
         for (usize i = 0; i < n; ++i) {
             if (abs(x[i]) <= param) e -= 2.0;

@@ -92,8 +92,8 @@ Array<f64> upcoef(bool is_detail, ArrayRef<f64> x, const FilterBank& fb, i32 lev
         y = conv_full_1d(ArrayRef<f64>(up.data(), up.size()), filt, alloc);
     }
 
-    if (target_len >= 0 && static_cast<usize>(target_len) < y.size()) {
-        const usize keep = static_cast<usize>(target_len);
+    if (target_len >= 0 && as<usize>(target_len) < y.size()) {
+        const usize keep = as<usize>(target_len);
         const usize start = (y.size() - keep) / 2;
         Array<f64> cropped(alloc);
         cropped.resize(keep);
@@ -111,7 +111,7 @@ Array<f64> wrcoef(bool is_detail, ArrayRef<f64> c, ArrayRef<usize> l, ArrayRef<f
     if (l.size() < 3 || lo_r.size() < 2 || hi_r.size() != lo_r.size()) {
         return out;
     }
-    const i32 n_max = static_cast<i32>(l.size()) - 2;
+    const i32 n_max = as<i32>(l.size()) - 2;
     const i32 eff_n = (level == -1) ? n_max : level;
     if (!is_detail) {
         if (eff_n < 0 || eff_n > n_max) {
@@ -125,7 +125,7 @@ Array<f64> wrcoef(bool is_detail, ArrayRef<f64> c, ArrayRef<usize> l, ArrayRef<f
 
     usize expected_c = l[0];
     for (i32 k = 0; k < n_max; ++k) {
-        expected_c += l[1 + static_cast<usize>(k)];
+        expected_c += l[1 + as<usize>(k)];
     }
     if (c.size() < expected_c) {
         return out;
@@ -137,13 +137,13 @@ Array<f64> wrcoef(bool is_detail, ArrayRef<f64> c, ArrayRef<usize> l, ArrayRef<f
         cv[i] = c[i];
     }
 
-    Array<usize> d_start(static_cast<usize>(n_max) + 1, 0, scratch.allocator());
-    Array<usize> d_end(static_cast<usize>(n_max) + 1, 0, scratch.allocator());
+    Array<usize> d_start(as<usize>(n_max) + 1, 0, scratch.allocator());
+    Array<usize> d_end(as<usize>(n_max) + 1, 0, scratch.allocator());
     {
         usize off = l[0];
         for (i32 idx_l = 1; idx_l <= n_max; ++idx_l) {
-            const usize dlen = l[static_cast<usize>(idx_l)];
-            const usize lev = static_cast<usize>(n_max - idx_l + 1);
+            const usize dlen = l[as<usize>(idx_l)];
+            const usize lev = as<usize>(n_max - idx_l + 1);
             d_start[lev] = off;
             d_end[lev] = off + dlen;
             off += dlen;
@@ -152,7 +152,7 @@ Array<f64> wrcoef(bool is_detail, ArrayRef<f64> c, ArrayRef<usize> l, ArrayRef<f
 
     if (!is_detail) {
         for (i32 k = 1; k <= eff_n; ++k) {
-            const usize ku = static_cast<usize>(k);
+            const usize ku = as<usize>(k);
             for (usize i = d_start[ku]; i < d_end[ku]; ++i) {
                 cv[i] = 0.0;
             }
@@ -165,7 +165,7 @@ Array<f64> wrcoef(bool is_detail, ArrayRef<f64> c, ArrayRef<usize> l, ArrayRef<f
             if (k == eff_n) {
                 continue;
             }
-            const usize ku = static_cast<usize>(k);
+            const usize ku = as<usize>(k);
             for (usize i = d_start[ku]; i < d_end[ku]; ++i) {
                 cv[i] = 0.0;
             }
@@ -179,9 +179,9 @@ usize wmaxlev(usize signal_len, usize filter_len) noexcept {
     if (filter_len < 2 || signal_len < filter_len) {
         return 0;
     }
-    const f64 r = static_cast<f64>(signal_len) / static_cast<f64>(filter_len - 1);
+    const f64 r = as<f64>(signal_len) / as<f64>(filter_len - 1);
     const f64 lev = keel::floor(keel::log2(r));
-    return (lev > 0.0) ? static_cast<usize>(lev) : 0;
+    return (lev > 0.0) ? as<usize>(lev) : 0;
 }
 
 Wavedec2Result wavedec2(ArrayRef<f64> x_colmajor, usize rows, usize cols, i32 level, const FilterBank& fb,
@@ -191,7 +191,7 @@ Wavedec2Result wavedec2(ArrayRef<f64> x_colmajor, usize rows, usize cols, i32 le
         return res;
     }
 
-    const usize lv = static_cast<usize>(level);
+    const usize lv = as<usize>(level);
     ArenaTemp scratch = keel::get_scratch(alloc);
     Array<Array<f64>> hs(scratch.allocator());
     Array<Array<f64>> vs(scratch.allocator());
@@ -255,7 +255,7 @@ Idwt2Result appcoef2(ArrayRef<f64> c, ArrayRef<usize> s_rows, ArrayRef<usize> s_
     if (s_rows.size() < 3 || s_cols.size() != s_rows.size()) {
         return res;
     }
-    const i32 n_max = static_cast<i32>(s_rows.size()) - 2;
+    const i32 n_max = as<i32>(s_rows.size()) - 2;
     const i32 target = (level < 0) ? n_max : level;
     if (target < 0 || target > n_max) {
         return res;
@@ -293,7 +293,7 @@ Idwt2Result appcoef2(ArrayRef<f64> c, ArrayRef<usize> s_rows, ArrayRef<usize> s_
     Array<f64> cd(scratch.allocator());
 
     for (i32 lev = n_max; lev > target; --lev) {
-        const usize s_idx = static_cast<usize>(n_max - lev + 1);
+        const usize s_idx = as<usize>(n_max - lev + 1);
         const usize dr = s_rows[s_idx];
         const usize dc = s_cols[s_idx];
         const usize dn = dr * dc;
@@ -306,13 +306,13 @@ Idwt2Result appcoef2(ArrayRef<f64> c, ArrayRef<usize> s_rows, ArrayRef<usize> s_
 
         const i32 next_lev = lev - 1;
         const usize tgt_idx =
-            (next_lev == 0) ? static_cast<usize>(n_max + 1) : static_cast<usize>(n_max - next_lev + 1);
+            (next_lev == 0) ? as<usize>(n_max + 1) : as<usize>(n_max - next_lev + 1);
         const usize tgt_r = s_rows[tgt_idx];
         const usize tgt_c = s_cols[tgt_idx];
 
         Idwt2Result step = idwt2(ArrayRef<f64>(running.data(), running.size()), ArrayRef<f64>(ch.data(), dn),
                                  ArrayRef<f64>(cv.data(), dn), ArrayRef<f64>(cd.data(), dn), cur_r, cur_c, fb,
-                                 static_cast<i64>(tgt_r), static_cast<i64>(tgt_c),
+                                 as<i64>(tgt_r), as<i64>(tgt_c),
                                  (next_lev == target) ? alloc : scratch.allocator());
         running = move(step.out);
         cur_r = step.rows;
@@ -336,18 +336,18 @@ Idwt2Result detcoef2(Detail2D kind, ArrayRef<f64> c, ArrayRef<usize> s_rows, Arr
     if (s_rows.size() < 3 || s_cols.size() != s_rows.size()) {
         return res;
     }
-    const i32 n_max = static_cast<i32>(s_rows.size()) - 2;
+    const i32 n_max = as<i32>(s_rows.size()) - 2;
     if (level < 1 || level > n_max) {
         return res;
     }
 
     usize off = s_rows[0] * s_cols[0];
     for (i32 lev = n_max; lev > level; --lev) {
-        const usize idx = static_cast<usize>(n_max - lev + 1);
+        const usize idx = as<usize>(n_max - lev + 1);
         off += 3 * s_rows[idx] * s_cols[idx];
     }
 
-    const usize idx = static_cast<usize>(n_max - level + 1);
+    const usize idx = as<usize>(n_max - level + 1);
     const usize dr = s_rows[idx];
     const usize dc = s_cols[idx];
     const usize dn = dr * dc;

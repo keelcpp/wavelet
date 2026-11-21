@@ -25,7 +25,7 @@ void test_filters_and_dwt_roundtrip() {
     const char* names[] = {"haar", "db4", "sym4", "coif2", "bior2.4", "rbio4.4"};
     keel::f64 sig[16];
     for (keel::usize i = 0; i < 16; ++i) {
-        sig[i] = std::sin(0.3 * static_cast<keel::f64>(i)) + 0.5 * std::cos(0.7 * static_cast<keel::f64>(i));
+        sig[i] = std::sin(0.3 * keel::as<keel::f64>(i)) + 0.5 * std::cos(0.7 * keel::as<keel::f64>(i));
     }
 
     for (const char* name : names) {
@@ -58,7 +58,7 @@ void test_dwt2_and_modwt_roundtrip() {
     check(keel::wavelet::lookup_filters("db2", fb), "lookup db2");
 
     keel::f64 img[6 * 8];
-    for (keel::usize i = 0; i < 48; ++i) img[i] = static_cast<keel::f64>(i % 7) - 3.0;
+    for (keel::usize i = 0; i < 48; ++i) img[i] = keel::as<keel::f64>(i % 7) - 3.0;
     auto d2 = keel::wavelet::dwt2(img, 6, 8, fb);
     auto r2 = keel::wavelet::idwt2(keel::ArrayRef<keel::f64>(d2.ca.data(), d2.ca.size()),
                                    keel::ArrayRef<keel::f64>(d2.ch.data(), d2.ch.size()),
@@ -71,7 +71,7 @@ void test_dwt2_and_modwt_roundtrip() {
     }
 
     keel::f64 sig[13];
-    for (keel::usize i = 0; i < 13; ++i) sig[i] = std::cos(0.4 * static_cast<keel::f64>(i));
+    for (keel::usize i = 0; i < 13; ++i) sig[i] = std::cos(0.4 * keel::as<keel::f64>(i));
     auto w = keel::wavelet::modwt(sig, 3, fb);
     auto irec = keel::wavelet::imodwt(keel::ArrayRef<keel::f64>(w.data(), w.size()), 3, 13, fb);
     check(irec.size() == 13, "imodwt length");
@@ -85,7 +85,7 @@ void test_swt_denoise_entropy() {
     check(keel::wavelet::lookup_filters("haar", fb), "lookup haar");
 
     keel::f64 sig[16];
-    for (keel::usize i = 0; i < 16; ++i) sig[i] = static_cast<keel::f64>(i);
+    for (keel::usize i = 0; i < 16; ++i) sig[i] = keel::as<keel::f64>(i);
     auto s = keel::wavelet::swt_ad(sig, 2, keel::ArrayRef<keel::f64>(fb.lo_d.data(), fb.lo_d.size()),
                                    keel::ArrayRef<keel::f64>(fb.hi_d.data(), fb.hi_d.size()));
     check(s.levels == 2 && s.length == 16, "swt_ad dims");
@@ -109,7 +109,7 @@ void test_multilevel_haar_dyad() {
 
     keel::f64 sig[24];
     for (keel::usize i = 0; i < 24; ++i) {
-        sig[i] = std::sin(0.25 * static_cast<keel::f64>(i)) + 0.3 * static_cast<keel::f64>(i % 5);
+        sig[i] = std::sin(0.25 * keel::as<keel::f64>(i)) + 0.3 * keel::as<keel::f64>(i % 5);
     }
 
     auto dec = keel::wavelet::wavedec(sig, 3, fb);
@@ -137,7 +137,7 @@ void test_multilevel_haar_dyad() {
     // 2D multilevel roundtrip
     keel::f64 img[10 * 12];
     for (keel::usize i = 0; i < 120; ++i) {
-        img[i] = std::sin(0.1 * static_cast<keel::f64>(i)) + static_cast<keel::f64>(i % 9);
+        img[i] = std::sin(0.1 * keel::as<keel::f64>(i)) + keel::as<keel::f64>(i % 9);
     }
     auto dec2 = keel::wavelet::wavedec2(img, 10, 12, 2, fb);
     auto rec2 = keel::wavelet::waverec2(dec2.c, dec2.s_rows, dec2.s_cols, fb);
@@ -200,7 +200,7 @@ void test_shapes_centfrq_cwt() {
     constexpr keel::usize kN = 256;
     keel::Array<keel::f64> tone(kN);
     for (keel::usize i = 0; i < kN; ++i) {
-        tone[i] = std::sin(keel::kTau * 50.0 * static_cast<keel::f64>(i) / kFs);
+        tone[i] = std::sin(keel::kTau * 50.0 * keel::as<keel::f64>(i) / kFs);
     }
     const keel::wavelet::CwtWavelet waves[3] = {
         keel::wavelet::CwtWavelet::Morse,

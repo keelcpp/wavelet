@@ -91,15 +91,15 @@ Array<f64> idwt(ArrayRef<f64> ca, ArrayRef<f64> cd, ArrayRef<f64> lo_r, ArrayRef
     for (usize i = 0; i < m; ++i) y[i] = y_a[i] + y_d[i];
 
     const usize sx = m - 1;
-    const i64 want = (target_len >= 0) ? target_len : (static_cast<i64>(2 * la) - static_cast<i64>(lf) + 2);
+    const i64 want = (target_len >= 0) ? target_len : (as<i64>(2 * la) - as<i64>(lf) + 2);
 
     usize out_n = 0;
     usize offset = 1;
-    if (want < 0 || static_cast<usize>(want) >= sx) {
+    if (want < 0 || as<usize>(want) >= sx) {
         out_n = sx;
         offset = 1;
     } else {
-        out_n = static_cast<usize>(want);
+        out_n = as<usize>(want);
         offset = (sx - out_n) / 2 + 1;
     }
 
@@ -115,7 +115,7 @@ Wavedec1Result wavedec(ArrayRef<f64> x, i32 level, const FilterBank& fb, Allocat
     Wavedec1Result res{Array<f64>(alloc), Array<usize>(alloc)};
     if (level < 1) return res;
 
-    const usize lv = static_cast<usize>(level);
+    const usize lv = as<usize>(level);
     Array<Array<f64>> details(alloc);
     details.reserve(lv);
 
@@ -150,7 +150,7 @@ Array<f64> appcoef(ArrayRef<f64> c, ArrayRef<usize> l, ArrayRef<f64> lo_r, Array
                    Allocator* alloc) {
     Array<f64> running(alloc);
     if (l.size() < 3) return running;
-    const i32 n_max = static_cast<i32>(l.size()) - 2;
+    const i32 n_max = as<i32>(l.size()) - 2;
     const i32 target = (level < 0) ? n_max : level;
     if (target < 0 || target > n_max) return running;
 
@@ -161,13 +161,13 @@ Array<f64> appcoef(ArrayRef<f64> c, ArrayRef<usize> l, ArrayRef<f64> lo_r, Array
     if (target == n_max) return running;
 
     usize off = a_len;
-    const usize steps = static_cast<usize>(n_max - target);
+    const usize steps = as<usize>(n_max - target);
     for (usize k = 0; k < steps; ++k) {
         const usize d_len = l[1 + k];
         if (off + d_len > c.size()) return Array<f64>(alloc);
         const usize rec_len = l[2 + k];
         running = idwt(ArrayRef<f64>(running.data(), running.size()), ArrayRef<f64>(c.data() + off, d_len), lo_r, hi_r,
-                       static_cast<i64>(rec_len), alloc);
+                       as<i64>(rec_len), alloc);
         off += d_len;
     }
     return running;
@@ -181,12 +181,12 @@ Array<f64> waverec(ArrayRef<f64> c, ArrayRef<usize> l, const FilterBank& fb, All
 Array<f64> detcoef(ArrayRef<f64> c, ArrayRef<usize> l, i32 level, Allocator* alloc) {
     Array<f64> out(alloc);
     if (l.size() < 3) return out;
-    const i32 n_max = static_cast<i32>(l.size()) - 2;
+    const i32 n_max = as<i32>(l.size()) - 2;
     if (level < 1 || level > n_max) return out;
 
     usize off = l[0];
-    for (i32 k = 0; k < n_max - level; ++k) off += l[1 + static_cast<usize>(k)];
-    const usize d_len = l[static_cast<usize>(n_max - level + 1)];
+    for (i32 k = 0; k < n_max - level; ++k) off += l[1 + as<usize>(k)];
+    const usize d_len = l[as<usize>(n_max - level + 1)];
     if (off + d_len > c.size()) return out;
     out.resize(d_len);
     for (usize i = 0; i < d_len; ++i) out[i] = c[off + i];
@@ -265,9 +265,9 @@ Idwt2Result idwt2(ArrayRef<f64> ca, ArrayRef<f64> ch, ArrayRef<f64> cv, ArrayRef
     // Natural reconstruction sizes via 1D idwt rule.
     auto natural_len = [lf](usize la) -> usize {
         const usize sx = 2 * la + lf - 2;
-        const i64 want = static_cast<i64>(2 * la) - static_cast<i64>(lf) + 2;
-        if (want < 0 || static_cast<usize>(want) >= sx) return sx;
-        return static_cast<usize>(want);
+        const i64 want = as<i64>(2 * la) - as<i64>(lf) + 2;
+        if (want < 0 || as<usize>(want) >= sx) return sx;
+        return as<usize>(want);
     };
 
     const usize nat_rows = natural_len(rows);
@@ -281,9 +281,9 @@ Idwt2Result idwt2(ArrayRef<f64> ca, ArrayRef<f64> ch, ArrayRef<f64> cv, ArrayRef
 
     for (usize c = 0; c < cols; ++c) {
         Array<f64> col_lo = idwt(ArrayRef<f64>(ca.data() + c * rows, rows), ArrayRef<f64>(ch.data() + c * rows, rows),
-                                 lo_r, hi_r, static_cast<i64>(nat_rows), alloc);
+                                 lo_r, hi_r, as<i64>(nat_rows), alloc);
         Array<f64> col_hi = idwt(ArrayRef<f64>(cv.data() + c * rows, rows), ArrayRef<f64>(cd.data() + c * rows, rows),
-                                 lo_r, hi_r, static_cast<i64>(nat_rows), alloc);
+                                 lo_r, hi_r, as<i64>(nat_rows), alloc);
         for (usize r = 0; r < nat_rows; ++r) {
             lo_r_mat[c * nat_rows + r] = col_lo[r];
             hi_r_mat[c * nat_rows + r] = col_hi[r];
@@ -304,14 +304,14 @@ Idwt2Result idwt2(ArrayRef<f64> ca, ArrayRef<f64> ch, ArrayRef<f64> cv, ArrayRef
             row_d[c] = hi_r_mat[c * nat_rows + r];
         }
         Array<f64> row_y = idwt(ArrayRef<f64>(row_a.data(), cols), ArrayRef<f64>(row_d.data(), cols), lo_r, hi_r,
-                                static_cast<i64>(nat_cols), alloc);
+                                as<i64>(nat_cols), alloc);
         for (usize c = 0; c < nat_cols; ++c) {
             full_out[c * nat_rows + r] = row_y[c];
         }
     }
 
-    const usize keep_r = (target_rows >= 0) ? min(static_cast<usize>(target_rows), nat_rows) : nat_rows;
-    const usize keep_c = (target_cols >= 0) ? min(static_cast<usize>(target_cols), nat_cols) : nat_cols;
+    const usize keep_r = (target_rows >= 0) ? min(as<usize>(target_rows), nat_rows) : nat_rows;
+    const usize keep_c = (target_cols >= 0) ? min(as<usize>(target_cols), nat_cols) : nat_cols;
 
     if (keep_r == nat_rows && keep_c == nat_cols) {
         res.out = move(full_out);
