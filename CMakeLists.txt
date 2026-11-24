@@ -18,7 +18,7 @@ if(NOT TARGET keel::keel)
     FetchContent_Declare(
         keel
         GIT_REPOSITORY https://github.com/keelcpp/keel.git
-        GIT_TAG        869a5c07a5d77341e5f6acbac5f8e024b274ea08
+        GIT_TAG        5d80fa7d6984e7325fc8d5317c5db13830381429
     )
     FetchContent_MakeAvailable(keel)
 endif()
@@ -41,7 +41,7 @@ if(NOT TARGET keel::fft)
     FetchContent_Declare(
         keel_fft
         GIT_REPOSITORY https://github.com/keelcpp/fft.git
-        GIT_TAG        abd91d6693d5f2a56311ecc4fbb38e2555ee0486
+        GIT_TAG        740bed99088ffb27d58fa2aa8e70b9d66f59100f
     )
     FetchContent_MakeAvailable(keel_fft)
 endif()
@@ -53,6 +53,7 @@ add_library(keel_wavelet STATIC
     src/swt.cpp
     src/denoise.cpp
     src/shape.cpp
+    src/extend.cpp
 )
 add_library(keel::wavelet ALIAS keel_wavelet)
 

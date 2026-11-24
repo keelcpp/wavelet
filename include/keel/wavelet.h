@@ -258,4 +258,31 @@ struct CwtResult {
                             bool extend_signal = true, f64 fmin = 0.0, f64 fmax = 0.0,
                             Allocator* alloc = nullptr);
 
+// ============================================================================
+// 1-D Signal Boundary Extension (wextend)
+// ============================================================================
+
+enum class ExtendMode : u8 {
+    kSym = 0,   // half-point symmetric ('sym', 'symh')
+    kSymW,      // whole-point symmetric ('symw')
+    kAsym,      // half-point antisymmetric ('asym', 'asymh')
+    kAsymW,     // whole-point antisymmetric ('asymw')
+    kSp0,       // order-0 spline (edge replication)
+    kSp1,       // order-1 spline (linear extrapolation: 'sp1', 'spd')
+    kPer,       // periodic with edge-pad on odd length ('per')
+    kZpd,       // zero padding ('zpd')
+    kPpd,       // pure periodic ('ppd')
+};
+
+enum class ExtendSide : u8 {
+    kBoth = 0,
+    kLeft,
+    kRight,
+};
+
+[[nodiscard]] Array<f64> wextend_1d(ArrayRef<f64> x, i64 lf, ExtendSide side, ExtendMode mode,
+                                    Allocator* alloc = nullptr);
+[[nodiscard]] Array<c64> wextend_1d_c64(ArrayRef<c64> x, i64 lf, ExtendSide side, ExtendMode mode,
+                                        Allocator* alloc = nullptr);
+
 } // namespace keel::wavelet

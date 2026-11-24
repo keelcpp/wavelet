@@ -224,6 +224,35 @@ void test_shapes_centfrq_cwt() {
     }
 }
 
+void test_wextend() {
+    const keel::f64 x[5] = {1.0, 2.0, 3.0, 4.0, 5.0};
+    auto sym = keel::wavelet::wextend_1d(x, 2, keel::wavelet::ExtendSide::kBoth,
+                                         keel::wavelet::ExtendMode::kSym);
+    check(sym.size() == 9 && sym[0] == 2.0 && sym[1] == 1.0 && sym[7] == 5.0 && sym[8] == 4.0,
+          "wextend sym");
+
+    auto symw = keel::wavelet::wextend_1d(x, 2, keel::wavelet::ExtendSide::kBoth,
+                                          keel::wavelet::ExtendMode::kSymW);
+    check(symw.size() == 9 && symw[0] == 3.0 && symw[1] == 2.0 && symw[7] == 4.0 && symw[8] == 3.0,
+          "wextend symw");
+
+    auto sp1 = keel::wavelet::wextend_1d(x, 2, keel::wavelet::ExtendSide::kBoth,
+                                         keel::wavelet::ExtendMode::kSp1);
+    check(sp1.size() == 9 && sp1[0] == -1.0 && sp1[1] == 0.0 && sp1[7] == 6.0 && sp1[8] == 7.0,
+          "wextend sp1");
+
+    auto per = keel::wavelet::wextend_1d(x, 2, keel::wavelet::ExtendSide::kBoth,
+                                         keel::wavelet::ExtendMode::kPer);
+    check(per.size() == 10 && per[0] == 5.0 && per[1] == 5.0 && per[7] == 5.0 && per[8] == 1.0,
+          "wextend per odd pad");
+
+    const keel::c64 xc[3] = {keel::c64(1.0, 2.0), keel::c64(3.0, 4.0), keel::c64(5.0, 6.0)};
+    auto zc = keel::wavelet::wextend_1d_c64(xc, 1, keel::wavelet::ExtendSide::kLeft,
+                                            keel::wavelet::ExtendMode::kZpd);
+    check(zc.size() == 4 && zc[0] == keel::c64(0.0, 0.0) && zc[1] == keel::c64(1.0, 2.0),
+          "wextend c64 zpd left");
+}
+
 } // namespace
 
 int main() {
@@ -232,6 +261,7 @@ int main() {
     test_swt_denoise_entropy();
     test_multilevel_haar_dyad();
     test_shapes_centfrq_cwt();
+    test_wextend();
     if (g_failures == 0) {
         std::printf("ALL keel::wavelet TESTS PASSED\n");
         return 0;
