@@ -1,22 +1,21 @@
 #include <keel/wavelet.h>
-
-#include <cmath>
-#include <cstdio>
+#include <keel/format.h>
+#include <keel/math.h>
 
 namespace {
 
-int g_failures = 0;
+keel::i32 g_failures = 0;
 
 void check(bool cond, const char* msg) {
     if (!cond) {
-        std::fprintf(stderr, "FAIL: %s\n", msg);
+        keel::eprintln("FAIL: {}", msg);
         ++g_failures;
     }
 }
 
 void check_near(keel::f64 got, keel::f64 expected, keel::f64 tol, const char* msg) {
-    if (std::fabs(got - expected) > tol || std::isnan(got)) {
-        std::fprintf(stderr, "FAIL: %s (got %.15g, expected %.15g, tol %.3g)\n", msg, got, expected, tol);
+    if (keel::abs(got - expected) > tol || keel::is_nan(got)) {
+        keel::eprintln("FAIL: {} (got {}, expected {}, tol {})", msg, got, expected, tol);
         ++g_failures;
     }
 }
@@ -25,7 +24,7 @@ void test_filters_and_dwt_roundtrip() {
     const char* names[] = {"haar", "db4", "sym4", "coif2", "bior2.4", "rbio4.4"};
     keel::f64 sig[16];
     for (keel::usize i = 0; i < 16; ++i) {
-        sig[i] = std::sin(0.3 * keel::as<keel::f64>(i)) + 0.5 * std::cos(0.7 * keel::as<keel::f64>(i));
+        sig[i] = keel::sin(0.3 * keel::as<keel::f64>(i)) + 0.5 * keel::cos(0.7 * keel::as<keel::f64>(i));
     }
 
     for (const char* name : names) {
@@ -71,7 +70,7 @@ void test_dwt2_and_modwt_roundtrip() {
     }
 
     keel::f64 sig[13];
-    for (keel::usize i = 0; i < 13; ++i) sig[i] = std::cos(0.4 * keel::as<keel::f64>(i));
+    for (keel::usize i = 0; i < 13; ++i) sig[i] = keel::cos(0.4 * keel::as<keel::f64>(i));
     auto w = keel::wavelet::modwt(sig, 3, fb);
     auto irec = keel::wavelet::imodwt(keel::ArrayRef<keel::f64>(w.data(), w.size()), 3, 13, fb);
     check(irec.size() == 13, "imodwt length");
@@ -109,7 +108,7 @@ void test_multilevel_haar_dyad() {
 
     keel::f64 sig[24];
     for (keel::usize i = 0; i < 24; ++i) {
-        sig[i] = std::sin(0.25 * keel::as<keel::f64>(i)) + 0.3 * keel::as<keel::f64>(i % 5);
+        sig[i] = keel::sin(0.25 * keel::as<keel::f64>(i)) + 0.3 * keel::as<keel::f64>(i % 5);
     }
 
     auto dec = keel::wavelet::wavedec(sig, 3, fb);
@@ -137,7 +136,7 @@ void test_multilevel_haar_dyad() {
     // 2D multilevel roundtrip
     keel::f64 img[10 * 12];
     for (keel::usize i = 0; i < 120; ++i) {
-        img[i] = std::sin(0.1 * keel::as<keel::f64>(i)) + keel::as<keel::f64>(i % 9);
+        img[i] = keel::sin(0.1 * keel::as<keel::f64>(i)) + keel::as<keel::f64>(i % 9);
     }
     auto dec2 = keel::wavelet::wavedec2(img, 10, 12, 2, fb);
     auto rec2 = keel::wavelet::waverec2(dec2.c, dec2.s_rows, dec2.s_cols, fb);
@@ -181,7 +180,7 @@ void test_shapes_centfrq_cwt() {
     check_near(keel::wavelet::meyeraux(0.5), 0.5, 1e-15, "meyeraux(0.5) == 0.5");
 
     keel::wavelet::gauswavf(-5.0, 5.0, 2, psi, x);
-    check(std::isfinite(psi[5]), "gauswavf finite");
+    check(keel::is_finite(psi[5]), "gauswavf finite");
 
     keel::c64 cpsi[11]{};
     keel::wavelet::cgauwavf(-5.0, 5.0, 1, cpsi, x);
@@ -200,7 +199,7 @@ void test_shapes_centfrq_cwt() {
     constexpr keel::usize kN = 256;
     keel::Array<keel::f64> tone(kN);
     for (keel::usize i = 0; i < kN; ++i) {
-        tone[i] = std::sin(keel::kTau * 50.0 * keel::as<keel::f64>(i) / kFs);
+        tone[i] = keel::sin(keel::kTau * 50.0 * keel::as<keel::f64>(i) / kFs);
     }
     const keel::wavelet::CwtWavelet waves[3] = {
         keel::wavelet::CwtWavelet::Morse,
@@ -263,9 +262,9 @@ int main() {
     test_shapes_centfrq_cwt();
     test_wextend();
     if (g_failures == 0) {
-        std::printf("ALL keel::wavelet TESTS PASSED\n");
+        keel::println("ALL keel::wavelet TESTS PASSED");
         return 0;
     }
-    std::fprintf(stderr, "%d FAILURE(S)\n", g_failures);
+    keel::eprintln("{} FAILURE(S)", g_failures);
     return 1;
 }
