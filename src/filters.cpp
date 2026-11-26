@@ -4,9 +4,6 @@ namespace keel::wavelet {
 
 namespace {
 
-constexpr f64 kSqrt2 = 1.41421356237309504880;
-constexpr f64 kInvSqrt2 = 0.70710678118654752440;
-
 // ============================================================================
 // Orthogonal wavelet Lo_D tables (haar, db1..db10, sym2..sym10, coif1..coif5)
 // ============================================================================
@@ -569,6 +566,12 @@ bool lookup_filters(StringRef name, FilterBank& out, Allocator* alloc) {
         if (name == s.name) {
             const usize n = s.len;
             copy_to_array(out.lo_d, s.lo_d, n, alloc);
+            f64 sum = 0.0;
+            for (usize k = 0; k < n; ++k) sum += out.lo_d[k];
+            if (sum != 0.0) {
+                const f64 norm = kSqrt2 / sum;
+                for (usize k = 0; k < n; ++k) out.lo_d[k] *= norm;
+            }
             out.lo_r = Array<f64>(alloc);
             out.hi_r = Array<f64>(alloc);
             out.hi_d = Array<f64>(alloc);
@@ -601,11 +604,14 @@ FilterBank orthfilt(ArrayRef<f64> scaling_w, Allocator* alloc) {
     FilterBank fb{Array<f64>(alloc), Array<f64>(alloc), Array<f64>(alloc), Array<f64>(alloc)};
     const usize n = scaling_w.size();
     if (n == 0) return fb;
+    f64 sum = 0.0;
+    for (usize k = 0; k < n; ++k) sum += scaling_w[k];
+    const f64 scale = (sum != 0.0) ? (kSqrt2 / sum) : kSqrt2;
     fb.lo_r.resize(n);
     fb.lo_d.resize(n);
     fb.hi_r.resize(n);
     fb.hi_d.resize(n);
-    for (usize k = 0; k < n; ++k) fb.lo_r[k] = scaling_w[k] * kSqrt2;
+    for (usize k = 0; k < n; ++k) fb.lo_r[k] = scaling_w[k] * scale;
     for (usize k = 0; k < n; ++k) fb.lo_d[k] = fb.lo_r[n - 1 - k];
     for (usize k = 0; k < n; ++k) {
         const f64 sgn = ((k & 1u) == 0u) ? 1.0 : -1.0;
@@ -617,11 +623,19 @@ FilterBank orthfilt(ArrayRef<f64> scaling_w, Allocator* alloc) {
 
 void qmf(ArrayRef<f64> x, MutArrayRef<f64> out, i32 parity) noexcept {
     const usize n = min(x.size(), out.size());
-    const i32 p = ((parity % 2) + 2) % 2;
-    for (usize k = 0; k < n; ++k) {
-        const f64 v = x[n - 1 - k];
-        const bool neg = ((k & 1u) == 1u);
-        out[k] = (neg ^ (p == 1)) ? -v : v;
+    if (n == 0) return;
+    const bool flip = (parity & 1) != 0;
+    const usize half = (n + 1) / 2;
+    for (usize k = 0; k < half; ++k) {
+        const usize j = n - 1 - k;
+        const f64 xk = x[k];
+        const f64 xj = x[j];
+        const bool neg_k = (((k & 1u) == 1u) != flip);
+        const bool neg_j = (((j & 1u) == 1u) != flip);
+        out[k] = neg_k ? -xj : xj;
+        if (j != k) {
+            out[j] = neg_j ? -xk : xk;
+        }
     }
 }
 

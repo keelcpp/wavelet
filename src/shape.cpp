@@ -19,11 +19,26 @@ void fill_linspace(f64 lb, f64 ub, MutArrayRef<f64> x) noexcept {
         x[0] = ub;
         return;
     }
-    const f64 step = (ub - lb) / as<f64>(n - 1);
+    const f64 denom = as<f64>(n - 1);
+    const f64 step = (ub / denom) - (lb / denom);
     for (usize i = 0; i < n; ++i) {
         x[i] = lb + step * as<f64>(i);
     }
     x[n - 1] = ub;
+}
+
+[[nodiscard]] f64 ipow_f64(f64 base, i32 exp) noexcept {
+    f64 res = 1.0;
+    f64 b = base;
+    i32 e = exp;
+    while (e > 0) {
+        if ((e & 1) != 0) {
+            res *= b;
+        }
+        b *= b;
+        e >>= 1;
+    }
+    return res;
 }
 
 f64 sinc_pi(f64 x) noexcept {
@@ -103,6 +118,9 @@ Array<f64> conv_full_vec(ArrayRef<f64> a, ArrayRef<f64> b, Allocator* alloc) {
     if (a.empty() || b.empty()) {
         return c;
     }
+    if (a.size() > Limits<usize>::kMax - (b.size() - 1)) {
+        return c;
+    }
     const usize out_n = a.size() + b.size() - 1;
     c.resize(out_n);
     for (usize i = 0; i < out_n; ++i) {
@@ -174,6 +192,7 @@ void morlet(f64 lb, f64 ub, MutArrayRef<f64> psi, MutArrayRef<f64> x) noexcept {
 }
 
 f64 meyeraux(f64 v) noexcept {
+    if (keel::is_nan(v)) return kNaN;
     if (v <= 0.0) return 0.0;
     if (v >= 1.0) return 1.0;
     const f64 v2 = v * v;
@@ -191,7 +210,7 @@ void meyeraux(ArrayRef<f64> in, MutArrayRef<f64> out) noexcept {
 
 void shanwavf(f64 lb, f64 ub, f64 fb, f64 fc, MutArrayRef<c64> psi, MutArrayRef<f64> x) noexcept {
     const usize n = (psi.size() < x.size()) ? psi.size() : x.size();
-    if (n == 0) {
+    if (n == 0 || !(fb > 0.0) || !keel::is_finite(fb) || !keel::is_finite(fc)) {
         return;
     }
     fill_linspace(lb, ub, MutArrayRef<f64>(x.data(), n));
@@ -204,7 +223,7 @@ void shanwavf(f64 lb, f64 ub, f64 fb, f64 fc, MutArrayRef<c64> psi, MutArrayRef<
 
 void cmorwavf(f64 lb, f64 ub, f64 fb, f64 fc, MutArrayRef<c64> psi, MutArrayRef<f64> x) noexcept {
     const usize n = (psi.size() < x.size()) ? psi.size() : x.size();
-    if (n == 0) {
+    if (n == 0 || !(fb > 0.0) || !keel::is_finite(fb) || !keel::is_finite(fc)) {
         return;
     }
     fill_linspace(lb, ub, MutArrayRef<f64>(x.data(), n));
@@ -217,7 +236,7 @@ void cmorwavf(f64 lb, f64 ub, f64 fb, f64 fc, MutArrayRef<c64> psi, MutArrayRef<
 
 void fbspwavf(f64 lb, f64 ub, i32 m, f64 fb, f64 fc, MutArrayRef<c64> psi, MutArrayRef<f64> x) noexcept {
     const usize n = (psi.size() < x.size()) ? psi.size() : x.size();
-    if (n == 0 || m < 1) {
+    if (n == 0 || m < 1 || !(fb > 0.0) || !keel::is_finite(fb) || !keel::is_finite(fc)) {
         return;
     }
     fill_linspace(lb, ub, MutArrayRef<f64>(x.data(), n));
@@ -226,14 +245,14 @@ void fbspwavf(f64 lb, f64 ub, i32 m, f64 fb, f64 fc, MutArrayRef<c64> psi, MutAr
     for (usize i = 0; i < n; ++i) {
         const f64 t = x[i];
         const f64 sc = sinc_pi(fb * t * inv_m);
-        const f64 pow_sc = keel::pow(sc, as<f64>(m));
+        const f64 pow_sc = ipow_f64(sc, m);
         psi[i] = s * pow_sc * cexp_2pi(fc * t);
     }
 }
 
 void gauswavf(f64 lb, f64 ub, i32 p, MutArrayRef<f64> psi, MutArrayRef<f64> x) noexcept {
     const usize n = (psi.size() < x.size()) ? psi.size() : x.size();
-    if (n == 0 || p < 1) {
+    if (n == 0 || p < 1 || p > 150) {
         return;
     }
     fill_linspace(lb, ub, MutArrayRef<f64>(x.data(), n));
@@ -248,14 +267,15 @@ void gauswavf(f64 lb, f64 ub, i32 p, MutArrayRef<f64> psi, MutArrayRef<f64> x) n
 
 void cgauwavf(f64 lb, f64 ub, i32 p, MutArrayRef<c64> psi, MutArrayRef<f64> x, Allocator* alloc) {
     const usize n = (psi.size() < x.size()) ? psi.size() : x.size();
-    if (n == 0 || p < 1) {
+    if (n == 0 || p < 1 || p > 150) {
         return;
     }
     fill_linspace(lb, ub, MutArrayRef<f64>(x.data(), n));
     const f64 sgn_p = ((p % 2) == 0) ? 1.0 : -1.0;
 
     ArenaTemp scratch = keel::get_scratch(alloc);
-    Array<f64> mag2(n, scratch.allocator());
+    Array<f64> mag(n, scratch.allocator());
+    f64 max_mag = 0.0;
     for (usize i = 0; i < n; ++i) {
         const f64 t = x[i];
         const c64 z(t, 0.5);
@@ -264,21 +284,31 @@ void cgauwavf(f64 lb, f64 ub, i32 p, MutArrayRef<c64> psi, MutArrayRef<f64> x, A
         const c64 phase(keel::cos(t), -keel::sin(t));
         const c64 f = sgn_p * hp * (e * phase);
         psi[i] = f;
-        mag2[i] = keel::norm(f);
+        const f64 m = keel::hypot(f.real(), f.imag());
+        mag[i] = m;
+        if (m > max_mag) max_mag = m;
     }
 
+    if (!(max_mag > 0.0) || !keel::is_finite(max_mag)) {
+        for (usize i = 0; i < n; ++i) psi[i] = c64(0.0, 0.0);
+        return;
+    }
+
+    const f64 inv_max = 1.0 / max_mag;
     f64 norm_sq = 0.0;
     if (n >= 2) {
-        const f64 h = (ub - lb) / as<f64>(n - 1);
+        const f64 h = keel::abs((ub / as<f64>(n - 1)) - (lb / as<f64>(n - 1)));
         for (usize i = 0; i < n; ++i) {
             const f64 w = (i == 0 || i + 1 == n) ? 0.5 : 1.0;
-            norm_sq += w * mag2[i];
+            const f64 scaled = mag[i] * inv_max;
+            norm_sq += w * scaled * scaled;
         }
         norm_sq *= h;
     } else {
-        norm_sq = mag2[0];
+        const f64 scaled = mag[0] * inv_max;
+        norm_sq = scaled * scaled;
     }
-    const f64 inv_n = (norm_sq > 0.0) ? (1.0 / keel::sqrt(norm_sq)) : 0.0;
+    const f64 inv_n = (norm_sq > 0.0) ? (inv_max / keel::sqrt(norm_sq)) : 0.0;
     for (usize i = 0; i < n; ++i) {
         psi[i] *= inv_n;
     }
@@ -463,10 +493,14 @@ CentfrqResult centfrq(StringRef name, i32 iter, bool with_recfreq, Allocator* al
     ArenaTemp scratch = keel::get_scratch(alloc);
 
     WavefunPsiResult wf = wavefun_psi(name, iter, scratch.allocator());
-    if (!wf.ok || wf.xval.empty()) {
+    if (!wf.ok || wf.xval.size() < 2) {
         return res;
     }
     const usize n = wf.xval.size();
+    const f64 t_span = wf.xval[n - 1] - wf.xval[0];
+    if (!(t_span > 0.0) || !keel::is_finite(t_span)) {
+        return res;
+    }
 
     auto plan_res = fft::FftPlan1D::create(n, scratch.allocator());
     if (!plan_res.is_ok()) {
@@ -494,7 +528,6 @@ CentfrqResult centfrq(StringRef name, i32 iter, bool with_recfreq, Allocator* al
 
     const usize ind = best_idx0 + 1;
     const usize ind_fold = (as<f64>(ind) > 0.5 * as<f64>(n)) ? (n + 2 - ind) : ind;
-    const f64 t_span = wf.xval[n - 1] - wf.xval[0];
     res.freq = as<f64>(ind_fold - 1) / t_span;
     res.is_complex = wf.is_complex;
 
@@ -508,19 +541,23 @@ CentfrqResult centfrq(StringRef name, i32 iter, bool with_recfreq, Allocator* al
         const f64 inv_n = 1.0 / as<f64>(n);
         if (wf.is_complex) {
             res.recfreq_cplx.resize(n);
+            usize phase_idx = 0;
             for (usize k = 0; k < n; ++k) {
-                const f64 ang = kTau * as<f64>(best_idx0 * k) * inv_n;
+                const f64 ang = kTau * as<f64>(phase_idx) * inv_n;
                 const c64 e(keel::cos(ang), keel::sin(ang));
                 res.recfreq_cplx[k] = (y_peak * e) * inv_n;
+                phase_idx = (phase_idx >= n - best_idx0) ? (phase_idx - (n - best_idx0)) : (phase_idx + best_idx0);
             }
         } else {
             res.recfreq_real.resize(n);
             const f64 scale =
                 (best_idx0 == 0 || ((n & 1u) == 0u && best_idx0 == n / 2)) ? inv_n : (2.0 * inv_n);
+            usize phase_idx = 0;
             for (usize k = 0; k < n; ++k) {
-                const f64 ang = kTau * as<f64>(best_idx0 * k) * inv_n;
+                const f64 ang = kTau * as<f64>(phase_idx) * inv_n;
                 const c64 e(keel::cos(ang), keel::sin(ang));
                 res.recfreq_real[k] = (y_peak * e).real() * scale;
+                phase_idx = (phase_idx >= n - best_idx0) ? (phase_idx - (n - best_idx0)) : (phase_idx + best_idx0);
             }
         }
     }
@@ -535,6 +572,12 @@ CwtResult cwt(ArrayRef<f64> x, CwtWavelet wavelet, f64 sample_rate, i32 voices_p
     const usize n = x.size();
     if (n < 4 || !(sample_rate > 0.0) || !keel::is_finite(sample_rate) || voices_per_octave < 1 ||
         voices_per_octave > 48) {
+        return res;
+    }
+    if (!keel::is_finite(fmin) || !keel::is_finite(fmax) || fmin < 0.0 || fmax < 0.0) {
+        return res;
+    }
+    if (fmin > 0.0 && fmax > 0.0 && !(fmax > fmin)) {
         return res;
     }
     if (wavelet == CwtWavelet::Morse) {
@@ -591,7 +634,7 @@ CwtResult cwt(ArrayRef<f64> x, CwtWavelet wavelet, f64 sample_rate, i32 voices_p
         wpsi = 5.0;
         const f64 sig = 0.6;
         wc = wpsi + sig * keel::sqrt(1.0 - 1.0 / (1.0 - keel::log(0.1)));
-        sigt = 5.847705277601328;
+        sigt = 5.847705;
     }
 
     f64 s0 = wc / kPi;
@@ -601,7 +644,7 @@ CwtResult cwt(ArrayRef<f64> x, CwtWavelet wavelet, f64 sample_rate, i32 voices_p
         smax = s_min_max;
     }
 
-    if (fmin > 0.0 && fmax > fmin && keel::is_finite(fmin) && keel::is_finite(fmax)) {
+    if (fmin > 0.0 && fmax > fmin) {
         const f64 fn_min = fmin / sample_rate;
         const f64 fn_max = fmax / sample_rate;
         const f64 s_from_fmax = wpsi / (kTau * fn_max);
@@ -612,8 +655,25 @@ CwtResult cwt(ArrayRef<f64> x, CwtWavelet wavelet, f64 sample_rate, i32 voices_p
     }
 
     f64 n_oct = keel::log2(smax / s0);
+    if (!keel::is_finite(n_oct)) {
+        return res;
+    }
     if (n_oct < 0.0) n_oct = 0.0;
-    const usize n_scales = 1 + as<usize>(keel::floor(nv * n_oct + 1e-12));
+    const f64 scale_span = nv * n_oct + 1e-12;
+    if (scale_span > 1e6) {
+        return res;
+    }
+    const usize n_scales = 1 + as<usize>(keel::floor(scale_span));
+    if (n_scales > Limits<usize>::kMax / n) {
+        return res;
+    }
+
+    const usize half_n = n / 2;
+    const usize pad_l = extend_signal ? ((half_n < 100000) ? half_n : 100000) : 0;
+    if (pad_l > Limits<usize>::kMax / 2 || n > Limits<usize>::kMax - 2 * pad_l) {
+        return res;
+    }
+    const usize n_pad = n + 2 * pad_l;
 
     ArenaTemp scratch = keel::get_scratch(alloc);
     Array<f64> scales(n_scales, scratch.allocator());
@@ -622,10 +682,6 @@ CwtResult cwt(ArrayRef<f64> x, CwtWavelet wavelet, f64 sample_rate, i32 voices_p
         scales[j] = s0 * keel::pow(2.0, as<f64>(j) / nv);
         res.freqs[j] = (wpsi * sample_rate) / (kTau * scales[j]);
     }
-
-    const usize half_n = n / 2;
-    const usize pad_l = extend_signal ? ((half_n < 100000) ? half_n : 100000) : 0;
-    const usize n_pad = n + 2 * pad_l;
 
     Array<f64> x_pad(n_pad, scratch.allocator());
     for (usize i = 0; i < pad_l; ++i) {

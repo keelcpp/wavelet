@@ -194,6 +194,7 @@ void ihaar_step(ArrayRef<f64> a, ArrayRef<f64> d, MutArrayRef<f64> x_out,
                 bool integer_lifting = false) noexcept;
 
 void ihaar_step_c64(ArrayRef<c64> a, ArrayRef<f64> d, MutArrayRef<c64> x_out) noexcept;
+void ihaar_step_c64(ArrayRef<c64> a, ArrayRef<c64> d, MutArrayRef<c64> x_out) noexcept;
 
 /// 1D dyadic downsampling (`keep_odd == false` keeps 0-based indices 1,3,...; `true` keeps 0,2,...).
 void dyaddown_1d(ArrayRef<f64> x, MutArrayRef<f64> out, bool keep_odd = false) noexcept;
