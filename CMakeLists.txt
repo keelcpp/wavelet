@@ -41,7 +41,7 @@ if(NOT TARGET keel::fft)
     FetchContent_Declare(
         keel_fft
         GIT_REPOSITORY https://github.com/keelcpp/fft.git
-        GIT_TAG        8f27754ba6e5671439d97d3847479bdbf7ccfee7
+        GIT_TAG        739550655dfea621d6f666d189ce3bc0ed49efa5
     )
     FetchContent_MakeAvailable(keel_fft)
 endif()
